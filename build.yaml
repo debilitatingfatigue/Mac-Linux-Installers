@@ -1,0 +1,103 @@
+name: Build and Package Application
+
+on: [push, pull_request]
+
+jobs:
+  build_linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-dev libxcb-xinerama0 libgl1-mesa-dev
+          
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+          
+      - name: Convert icon for Linux
+        run: |
+          sudo apt-get install -y imagemagick
+          convert src/assets/crossword.ico -resize 256x256 src/assets/crossword.png
+          
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller \
+            --name CrossLex \
+            --onefile \
+            --windowed \
+            --add-data "src/data/*:data" \
+            --add-data "src/assets/*:assets" \
+            --icon src/assets/crossword.png \
+            --additional-hooks-dir=src \
+            src/main.py
+          
+      - name: Create archive
+        run: |
+          tar -czvf linux_CrossLex.tar.gz -C dist/ .
+          
+      - uses: actions/upload-artifact@v3
+        with:
+          name: linux-build
+          path: linux_CrossLex.tar.gz
+
+  build_macos:
+    runs-on: macos-12
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+          
+      - name: Convert icon for macOS
+        run: |
+          brew install imagemagick
+          convert src/assets/crossword.ico -resize 256x256 src/assets/crossword.icns
+          
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller \
+            --name CrossLex \
+            --windowed \
+            --osx-bundle-identifier com.yourdomain.crossword \
+            --add-data "src/data/*:data" \
+            --add-data "src/assets/*:assets" \
+            --icon src/assets/crossword.icns \
+            --additional-hooks-dir=src \
+            src/main.py
+          
+      - name: Create DMG
+        run: |
+          brew install create-dmg
+          mkdir -p pkg_root
+          cp -r dist/CrossLex.app pkg_root/
+          create-dmg \
+            --volname "CrossLex Installer" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "CrossLex.app" 200 190 \
+            --hide-extension "CrossLex.app" \
+            --app-drop-link 600 185 \
+            "CrossLex.dmg" \
+            "pkg_root/"
+            
+      - uses: actions/upload-artifact@v3
+        with:
+          name: macos-build
+          path: CrossLex.dmg
