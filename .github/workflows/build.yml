@@ -3,51 +3,6 @@ name: Build and Package Application
 on: [push, pull_request]
 
 jobs:
-  build_linux:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-dev libxcb-xinerama0 libgl1-mesa-dev imagemagick
-          
-      - name: Install Python dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pyinstaller
-          
-      - name: Convert icon for Linux
-        run: |
-          convert src/assets/crossword.ico -resize 256x256 src/assets/crossword.png
-          
-      - name: Build with PyInstaller
-        run: |
-          pyinstaller \
-            --name CrossLex \
-            --onefile \
-            --windowed \
-            --add-data "src/data/*:data" \
-            --add-data "src/assets/*:assets" \
-            --icon src/assets/crossword.png \
-            --additional-hooks-dir=src \
-            src/main.py
-          
-      - name: Create archive
-        run: |
-          tar -czvf linux_CrossLex.tar.gz -C dist/ .
-          
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-build
-          path: linux_CrossLex.tar.gz
-
   build_macos:
     runs-on: macos-12
     steps:
